@@ -6,6 +6,14 @@ import io.github.themoah.klag.health.KafkaHealthMonitor;
 import io.github.themoah.klag.kafka.KafkaClientConfig;
 import io.github.themoah.klag.kafka.KafkaClientService;
 import io.github.themoah.klag.kafka.KafkaClientServiceImpl;
+import io.github.themoah.klag.metrics.MetricsCollector;
+import io.github.themoah.klag.metrics.MetricsConfig;
+import io.github.themoah.klag.metrics.MetricsReporter;
+import io.github.themoah.klag.metrics.MicrometerConfig;
+import io.github.themoah.klag.metrics.MicrometerReporter;
+import io.github.themoah.klag.metrics.PrometheusHandler;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -24,6 +32,7 @@ public class MainVerticle extends AbstractVerticle {
 
   private KafkaClientService kafkaClientService;
   private KafkaHealthMonitor healthMonitor;
+  private MetricsCollector metricsCollector;
   private HttpServer httpServer;
 
   @Override
@@ -31,6 +40,7 @@ public class MainVerticle extends AbstractVerticle {
     log.info("Starting Klag MainVerticle");
 
     AppConfig appConfig = AppConfig.fromEnvironment();
+    MetricsConfig metricsConfig = MetricsConfig.fromEnvironment();
     KafkaClientConfig kafkaConfig = loadKafkaConfig();
 
     kafkaClientService = new KafkaClientServiceImpl(vertx, kafkaConfig);
@@ -40,6 +50,9 @@ public class MainVerticle extends AbstractVerticle {
     HealthCheckHandler healthHandler = new HealthCheckHandler(healthMonitor);
     healthHandler.registerRoutes(router);
 
+    // Create metrics collector if enabled (also registers /metrics endpoint for Prometheus)
+    metricsCollector = createMetricsCollector(metricsConfig, router);
+
     router.route().handler(ctx -> {
       ctx.response()
         .setStatusCode(404)
@@ -48,6 +61,7 @@ public class MainVerticle extends AbstractVerticle {
     });
 
     healthMonitor.start()
+      .compose(v -> startMetricsCollector())
       .compose(v -> startHttpServer(router, appConfig.httpPort()))
       .onSuccess(server -> {
         httpServer = server;
@@ -68,6 +82,10 @@ public class MainVerticle extends AbstractVerticle {
       ? healthMonitor.stop()
       : Future.succeededFuture();
 
+    Future<Void> stopMetricsCollector = (metricsCollector != null)
+      ? metricsCollector.stop()
+      : Future.succeededFuture();
+
     Future<Void> stopHttpServer = (httpServer != null)
       ? httpServer.close()
       : Future.succeededFuture();
@@ -77,6 +95,7 @@ public class MainVerticle extends AbstractVerticle {
       : Future.succeededFuture();
 
     stopHealthMonitor
+      .compose(v -> stopMetricsCollector)
       .compose(v -> stopHttpServer)
       .compose(v -> closeKafkaClient)
       .onSuccess(v -> {
@@ -104,5 +123,40 @@ public class MainVerticle extends AbstractVerticle {
       log.info("No classpath config found, loading from environment: {}", e.getMessage());
       return KafkaClientConfig.fromEnvironment();
     }
+  }
+
+  private MetricsCollector createMetricsCollector(MetricsConfig config, Router router) {
+    if (!config.isEnabled()) {
+      log.info("Metrics reporting is disabled");
+      return null;
+    }
+
+    MeterRegistry registry = MicrometerConfig.createRegistry(config.reporterType());
+    if (registry == null) {
+      log.warn("Failed to create meter registry for type: {}", config.reporterType());
+      return null;
+    }
+
+    // Register Prometheus /metrics endpoint if using Prometheus reporter
+    if (registry instanceof PrometheusMeterRegistry prometheusRegistry) {
+      PrometheusHandler prometheusHandler = new PrometheusHandler(prometheusRegistry);
+      prometheusHandler.registerRoutes(router);
+    }
+
+    MetricsReporter reporter = new MicrometerReporter(registry);
+    return new MetricsCollector(
+      vertx,
+      kafkaClientService,
+      reporter,
+      config.collectionIntervalMs(),
+      config.consumerGroupFilter()
+    );
+  }
+
+  private Future<Void> startMetricsCollector() {
+    if (metricsCollector == null) {
+      return Future.succeededFuture();
+    }
+    return metricsCollector.start();
   }
 }

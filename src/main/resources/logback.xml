@@ -16,13 +16,16 @@
   <!-- Package-specific loggers -->
 
   <!-- Klag application -->
-  <logger name="io.github.themoah.klag" level="${LOG_LEVEL_KLAG:-INFO}"/>
+  <logger name="io.github.themoah.klag" level="${LOG_LEVEL_KLAG:-DEBUG}"/>
 
   <!-- Kafka client (health monitor, service) -->
   <logger name="io.github.themoah.klag.kafka" level="${LOG_LEVEL_KAFKA:-INFO}"/>
 
   <!-- Health check components -->
   <logger name="io.github.themoah.klag.health" level="${LOG_LEVEL_HEALTH:-INFO}"/>
+
+  <!-- Metrics components -->
+  <logger name="io.github.themoah.klag.metrics" level="${LOG_LEVEL_METRICS:-INFO}"/>
 
   <!-- Vert.x framework -->
   <logger name="io.vertx" level="${LOG_LEVEL_VERTX:-WARN}"/>

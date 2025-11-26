@@ -52,6 +52,13 @@ public interface KafkaClientService {
   Future<String> describeCluster();
 
   /**
+   * Lists all consumer groups in the Kafka cluster.
+   *
+   * @return Future containing set of consumer group IDs
+   */
+  Future<Set<String>> listConsumerGroups();
+
+  /**
    * Closes the underlying Kafka admin client and releases resources.
    *
    * @return Future that completes when the client is closed

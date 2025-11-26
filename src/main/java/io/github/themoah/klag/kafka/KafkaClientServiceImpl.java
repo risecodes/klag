@@ -155,6 +155,17 @@ public class KafkaClientServiceImpl implements KafkaClientService {
   }
 
   @Override
+  public Future<Set<String>> listConsumerGroups() {
+    log.debug("Listing consumer groups");
+    return adminClient.listConsumerGroups()
+      .map(listings -> listings.stream()
+        .map(listing -> listing.getGroupId())
+        .collect(Collectors.toSet()))
+      .onSuccess(groups -> log.info("Listed {} consumer groups", groups.size()))
+      .onFailure(err -> log.error("Failed to list consumer groups", err));
+  }
+
+  @Override
   public Future<Void> close() {
     log.info("Closing Kafka admin client");
     return adminClient.close()
