@@ -137,6 +137,12 @@ public class MainVerticle extends AbstractVerticle {
       return null;
     }
 
+    // Bind JVM metrics if enabled
+    if (config.jvmMetricsEnabled()) {
+      MicrometerConfig.bindJvmMetrics(registry);
+      log.info("JVM metrics enabled");
+    }
+
     // Register Prometheus /metrics endpoint if using Prometheus reporter
     if (registry instanceof PrometheusMeterRegistry prometheusRegistry) {
       PrometheusHandler prometheusHandler = new PrometheusHandler(prometheusRegistry);

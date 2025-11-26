@@ -6,3 +6,9 @@ In any order:
 * Convert lag to estimate of seconds
 * Dockerfile + (Helm chart)
 * Github actions
+
+* sinks:
+  * OTel
+  * statsD / DogStatsD.
+  * Google stackdriver.
+  * CloudWatch.

@@ -2,6 +2,10 @@ package io.github.themoah.klag.metrics;
 
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.datadog.DatadogConfig;
 import io.micrometer.datadog.DatadogMeterRegistry;
 import io.micrometer.prometheus.PrometheusConfig;
@@ -77,5 +81,18 @@ public final class MicrometerConfig {
         yield null;
       }
     };
+  }
+
+  /**
+   * Binds JVM metrics (memory, GC, threads, CPU) to the given registry.
+   *
+   * @param registry the meter registry to bind JVM metrics to
+   */
+  public static void bindJvmMetrics(MeterRegistry registry) {
+    log.info("Binding JVM metrics to registry");
+    new JvmMemoryMetrics().bindTo(registry);
+    new JvmGcMetrics().bindTo(registry);
+    new JvmThreadMetrics().bindTo(registry);
+    new ProcessorMetrics().bindTo(registry);
   }
 }

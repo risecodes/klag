@@ -1,8 +1,19 @@
 # Klag
 
-[![vert.x](https://img.shields.io/badge/vert.x-4.5.22-purple.svg)](https://vertx.io)
+Klag ~> A service for monitoring Kafka consumer lag.
+Inspired by [kafka lag exporter](https://github.com/seglo/kafka-lag-exporter) that was archived in 2024.
 
-Kafka Lag Exporter - A Vert.x application for monitoring Kafka consumer lag.
+Simple, lightweight and extendable lag exporter built with vert.x and micrometer.
+
+Supported sinks:
+* Prometheus endpoint.
+* Datadog.
+* (planned) Prometheus push gateway.
+* (planned) OTel.
+* (planned) statsD.
+* (planned) Google stackdriver.
+
+Docker / Helm chart - WIP.
 
 ## Building
 
@@ -34,9 +45,9 @@ Or use environment variables:
 - `KAFKA_BOOTSTRAP_SERVERS` - Kafka bootstrap servers (default: `localhost:9092`)
 - `KAFKA_REQUEST_TIMEOUT_MS` - Request timeout in milliseconds (default: `30000`)
 
-## Help
 
-- [Vert.x Documentation](https://vertx.io/docs/)
-- [Vert.x Stack Overflow](https://stackoverflow.com/questions/tagged/vert.x?sort=newest&pageSize=15)
-- [Vert.x User Group](https://groups.google.com/forum/?fromgroups#!forum/vertx)
-- [Vert.x Discord](https://discord.gg/6ry7aqPWXy)
+[![vert.x](https://img.shields.io/badge/vert.x-4.5.22-purple.svg)](https://vertx.io)
+
+Some parts of the code were written by Claude
+<img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claude-color.png" width="56" height="56" alt="Claude">
+

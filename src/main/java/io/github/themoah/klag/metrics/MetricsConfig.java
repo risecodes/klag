@@ -6,7 +6,8 @@ package io.github.themoah.klag.metrics;
 public record MetricsConfig(
   String reporterType,
   long collectionIntervalMs,
-  String consumerGroupFilter
+  String consumerGroupFilter,
+  boolean jvmMetricsEnabled
 ) {
 
   private static final String DEFAULT_REPORTER = "none";
@@ -20,8 +21,11 @@ public record MetricsConfig(
     String reporter = System.getenv().getOrDefault("METRICS_REPORTER", DEFAULT_REPORTER);
     long interval = parseLong("METRICS_INTERVAL_MS", DEFAULT_INTERVAL_MS);
     String filter = System.getenv().getOrDefault("METRICS_GROUP_FILTER", DEFAULT_FILTER);
+    boolean jvmEnabled = Boolean.parseBoolean(
+      System.getenv().getOrDefault("METRICS_JVM_ENABLED", "false")
+    );
 
-    return new MetricsConfig(reporter, interval, filter);
+    return new MetricsConfig(reporter, interval, filter, jvmEnabled);
   }
 
   /**
