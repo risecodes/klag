@@ -62,3 +62,4 @@ Tags: `consumer_group`, `topic`, `partition`
 
 - Async ops return `Future<T>`, Java 17 records for DTOs, SLF4J+Logback logging
 - Config priority: classpath → external file → env vars
+- Bump up the version in @build.gradle.kts after each minor or major change.
