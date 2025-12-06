@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 CHART_DIR="charts/klag"
 TESTS_DIR="${CHART_DIR}/tests"

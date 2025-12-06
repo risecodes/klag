@@ -86,6 +86,44 @@ Or use environment variables:
 - `KAFKA_BOOTSTRAP_SERVERS` - Kafka bootstrap servers (default: `localhost:9092`)
 - `KAFKA_REQUEST_TIMEOUT_MS` - Request timeout in milliseconds (default: `30000`)
 
+## Development
+
+### Testing Helm Chart
+
+Run the Helm chart test suite:
+```bash
+./scripts/test-helm-chart.sh
+```
+
+### Local Kubernetes Testing (macOS)
+
+Test the Helm chart on a local kind cluster:
+```bash
+# Run full test (creates cluster, installs chart, validates, cleans up)
+./scripts/local-k8s-test.sh
+
+# Auto-install missing dependencies (kind, helm, kubectl) via Homebrew
+./scripts/local-k8s-test.sh --auto-install
+
+# Keep cluster running after test for manual inspection
+./scripts/local-k8s-test.sh --skip-cleanup
+
+# Cleanup only (delete the kind cluster)
+./scripts/local-k8s-test.sh --cleanup
+```
+
+Prerequisites: Docker Desktop, kind, helm, kubectl (use `--auto-install` to install via Homebrew).
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Run tests before submitting:
+   ```bash
+   ./gradlew test                    # Java tests
+   ./scripts/test-helm-chart.sh      # Helm chart tests
+   ```
+4. Submit a pull request
 
 [![vert.x](https://img.shields.io/badge/vert.x-4.5.22-purple.svg)](https://vertx.io)
 
