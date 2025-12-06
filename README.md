@@ -21,7 +21,24 @@ Supported sinks:
 * (planned) Google stackdriver.
 
 `docker run --env-file .env themoah/klag`
-Helm chart - WIP.
+
+## Helm Chart
+
+```bash
+helm install klag ./charts/klag \
+  --set kafka.bootstrapServers="kafka-broker:9092"
+```
+
+With SASL authentication:
+```bash
+helm install klag ./charts/klag \
+  --set kafka.bootstrapServers="kafka:9092" \
+  --set kafka.securityProtocol="SASL_SSL" \
+  --set kafka.saslMechanism="PLAIN" \
+  --set kafka.saslJaasConfig="org.apache.kafka.common.security.plain.PlainLoginModule required username='user' password='pass';"
+```
+
+See [charts/klag/README.md](charts/klag/README.md) for full configuration options.
 
 sample `.env` file
 ```dotenv
