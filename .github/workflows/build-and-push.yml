@@ -1,102 +1,76 @@
-name: Build and Push Docker Image
+name: Docker Build & Deploy to Artifact Registry
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - dev
-      - main
+
+env:
+  GCP_PROJECT: prog-production
+  GAR_REGION: us-east4
+  IMAGE_NAME: klag
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      helm: ${{ steps.filter.outputs.helm }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check for changes
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            helm:
-              - 'charts/**'
-              - 'scripts/test-helm-chart.sh'
-
-  test-helm-chart:
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.helm == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'v3.14.0'
-
-      - name: Run Helm chart tests
-        run: ./scripts/test-helm-chart.sh
-
   build-and-push:
-    runs-on: ubuntu-latest
-    needs: [changes, test-helm-chart]
-    if: always() && (needs.test-helm-chart.result == 'success' || needs.test-helm-chart.result == 'skipped')
+    runs-on:
+      group: productionArmGCP
     permissions:
-      contents: write
-
+      id-token: write
+      contents: read
     steps:
-      - name: Checkout code
+      - name: ⬇️ Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: 🔑 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run tests
-        run: gradle test
-
-      - name: Generate tag
-        id: tag
+          workload_identity_provider: projects/294225887853/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-sa@global-mgmt.iam.gserviceaccount.com
+      - name: ⚙️ Set up GCloud and Configure Docker
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev --quiet
+      # --- Build and Push ---
+      - name: 🏗️ Build and Push Docker Image
+        # Define the full image path using the configured variables
         run: |
-          VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' build.gradle.kts)
-          BRANCH_NAME=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
-          TAG="${VERSION}-${BRANCH_NAME}"
-          echo "tag=${TAG}" >> $GITHUB_ENV
-          echo "branch=${BRANCH_NAME}" >> $GITHUB_ENV
-          echo "Generated tag: ${TAG}"
+          GAR_HOST="${{ env.GAR_REGION }}-docker.pkg.dev"
+          FULL_IMAGE_PATH="${GAR_HOST}/prog-production/us-east4/${{ env.IMAGE_NAME }}"
+          IMAGE_TAG="${{ github.sha }}"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+          echo "Building image: $FULL_IMAGE_PATH:$IMAGE_TAG"
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          # Build the image and tag it with the commit SHA
+          docker build -t "$FULL_IMAGE_PATH:$IMAGE_TAG" .
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            themoah/klag:${{ env.tag }}
-            themoah/klag:${{ env.branch }}-latest
+          echo "Pushing $FULL_IMAGE_PATH:$IMAGE_TAG to Artifact Registry..."
+          # Push the SHA-tagged image
+          docker push "$FULL_IMAGE_PATH:$IMAGE_TAG"
 
-      - name: Create and push git tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag $tag
-          git push origin $tag
+          # Tag and push 'latest'
+          docker tag "$FULL_IMAGE_PATH:$IMAGE_TAG" "$FULL_IMAGE_PATH:latest"
+          docker push "$FULL_IMAGE_PATH:latest"
+
+#  commit_to_repo:
+#    runs-on: ubuntu-latest
+#    needs:
+#      - build-and-push
+#    steps:
+#      - name: ⬇️ Checkout Repository
+#        uses: actions/checkout@v4
+#      - name: 📝 Update values.yaml
+#        # Use YQ to set the new version in the values.yaml file
+#        run: |
+#          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_linux_amd64
+#          sudo chmod a+x /usr/local/bin/yq
+#          yq -i '.image.tag = "${{ github.sha }}"' ./chart/values.yaml
+#          echo "Updated values.yaml with version ${{ github.sha }}"
+#
+#      - name: 💾 Commit Updated Helm Values
+#        run: |
+#          git config user.name ci-cd-user
+#          git config user.email ci-cd-user@risecodes.com
+#          git add ./chart/values.yaml
+#          # CRITICAL CHANGE: Added [skip ci] to the commit message
+#          git commit -m "chore(helm): Update Benthos image tag to ${{ github.sha }} [skip ci]" || echo "No changes to commit"
+#          REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN_GITHUB }}@github.com/${{ github.repository }}.git"
+#          git push $REPO_URL
